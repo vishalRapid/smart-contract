@@ -1,7 +1,9 @@
 //SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-contract ZombieFactory {
+import "./Ownable";
+
+contract ZombieFactory is Ownable {
     uint256 dnaDigits = 16;
     uint256 dnaModulus = 10**dnaDigits;
 
@@ -18,7 +20,7 @@ contract ZombieFactory {
     //event
     event NewZombie(uint256 zombieId, string name, uint256 dna);
 
-    function _createZombie(string memory _name, uint256 dna) private {
+    function _createZombie(string memory _name, uint256 dna) internal {
         zombies.push(Zombie(_name, dna));
         zombieToOwner[id] = msg.sender;
         ownerZombieCount[msg.sender]++;
