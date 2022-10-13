@@ -7,6 +7,7 @@ contract KittyInterface {
     function getKitty(uint256 _id)
         external
         view
+        virtual
         returns (
             bool isGestating,
             bool isReady,
@@ -24,24 +25,28 @@ contract KittyInterface {
 contract ZombieFeeding is ZombieFactory {
     KittyInterface kittyContract;
 
+    modifier ownerOf(uint256 _zombieId) {
+        require(msg.sender == zombieToOwner[_zombieId]);
+        _;
+    }
+
     function setKittyContractAddress(address _address) external onlyOwner {
         kittyContract = KittyInterface(_address);
     }
 
-    function _triggerCooldown(Zombie _zombie) internal {
-        _zombie.readyTime = uint32(now + cooldownTime);
+    function _triggerCooldown(Zombie memory _zombie) internal {
+        _zombie.readyTime = uint32(block.timestamp + cooldownTime);
     }
 
-    function _isReady(Zombie _zombie) internal view returns (bool) {
-        return (_zombie.readyTime <= now);
+    function _isReady(Zombie memory _zombie) internal view returns (bool) {
+        return (_zombie.readyTime <= block.timestamp);
     }
 
     function feedAndMultiply(
         uint256 _zombieId,
         uint256 _targetDna,
         string memory _species
-    ) internal {
-        require(zombieToOwner[_zombieId] == msg.sender);
+    ) internal ownerOf(_zombieId) {
         Zombie storage myZombie = zombies[_zombieId];
         require(_isReady(myZombie));
         _targetDna = _targetDna % dnaModulus;
