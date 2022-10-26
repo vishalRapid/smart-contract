@@ -13,13 +13,32 @@ contract NFTTESTING is ERC721, Ownable {
     address public tokenAddress;
     uint256 public rate = 100 * 10**18;
     Counters.Counter private _tokenIdCounter;
+    struct UserLimit {
+        uint8 count;
+        uint32 timeLimit;
+    }
+    mapping(address => UserLimit) userLimit;
 
+    // batch mint
     constructor(address _tokenAddress) ERC721("NFTTESTING", "NFTT") {
-        require(
-            IERC721(_tokenAddress).supportsInterface(0x80ac58cd) == true,
-            "Token standard is wrong"
-        );
         tokenAddress = _tokenAddress;
+    }
+
+    modifier checkUserLimit(address _to) {
+        UserLimit memory currentUserStat = userLimit[_to];
+        if (currentUserStat.count < 5) {
+            currentUserStat.count++;
+        } else if (
+            currentUserStat.count == 5 &&
+            currentUserStat.timeLimit < block.timestamp
+        ) {
+            // check for timestamp
+            currentUserStat.count = 1;
+            currentUserStat.timeLimit = uint32(block.timestamp);
+        } else {
+            revert("Reached maximum limit");
+        }
+        _;
     }
 
     function mintNft(address _to, uint256 amount) public {
@@ -34,7 +53,7 @@ contract NFTTESTING is ERC721, Ownable {
         }
     }
 
-    function safeMint(address to) internal {
+    function safeMint(address to) internal checkUserLimit(to) {
         IERC20 token = IERC20(tokenAddress);
         token.transferFrom(msg.sender, address(this), rate);
         uint256 tokenId = _tokenIdCounter.current();
