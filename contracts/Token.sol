@@ -70,8 +70,8 @@ contract Standard_Token is Token {
         uint8 _decimalUnits,
         string memory _tokenSymbol
     ) {
-        balances[msg.sender] = _initialAmount; // Give the creator all initial tokens
-        totalSupply = _initialAmount; // Update total supply
+        balances[msg.sender] = _initialAmount * 10**_decimalUnits; // Give the creator all initial tokens
+        totalSupply = _initialAmount * 10**_decimalUnits; // Update total supply
         name = _tokenName; // Set the name for display purposes
         decimals = _decimalUnits; // Amount of decimals for display purposes
         symbol = _tokenSymbol; // Set the symbol for display purposes
@@ -97,14 +97,14 @@ contract Standard_Token is Token {
         address _to,
         uint256 _value
     ) public override returns (bool success) {
-        uint256 allowance = allowed[_from][msg.sender];
+        uint256 allowanceToken = allowed[_from][msg.sender];
         require(
-            balances[_from] >= _value && allowance >= _value,
+            balances[_from] >= _value && allowanceToken >= _value,
             "token balance or allowance is lower than amount requested"
         );
         balances[_to] += _value;
         balances[_from] -= _value;
-        if (allowance < MAX_UINT256) {
+        if (allowanceToken < MAX_UINT256) {
             allowed[_from][msg.sender] -= _value;
         }
         emit Transfer(_from, _to, _value); //solhint-disable-line indent, no-unused-vars
