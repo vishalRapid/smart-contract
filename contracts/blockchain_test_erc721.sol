@@ -21,9 +21,9 @@ contract NFTTESTING is ERC721, Ownable {
 
     mapping(address => bool) whitelisted;
 
-    // batch mint
     constructor(address _tokenAddress) ERC721("NFTTESTING", "NFTT") {
         tokenAddress = _tokenAddress;
+        whitelisted[msg.sender] = true;
     }
 
     modifier checkUserLimit(address _to) {
@@ -43,8 +43,8 @@ contract NFTTESTING is ERC721, Ownable {
         _;
     }
 
-    function setWhiteList(address _to) public onlyOwner {
-        whitelisted[_to] = true;
+    function setWhiteList(address _to, bool _value) public onlyOwner {
+        whitelisted[_to] = _value;
     }
 
     function mintNft(address _to, uint256 amount) public {
