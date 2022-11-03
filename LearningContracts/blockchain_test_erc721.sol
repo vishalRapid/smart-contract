@@ -82,4 +82,13 @@ contract NFTTESTING is ERC721, Ownable {
         _tokenIdCounter.increment();
         _safeMint(to, tokenId);
     }
+
+    // adding functionality to burn nft to get back amount
+    function burn(uint256 tokenId) public {
+        require(
+            _isApprovedOrOwner(msg.sender, tokenId),
+            "ERC721: caller is not token owner nor approved"
+        );
+        _burn(tokenId);
+    }
 }
