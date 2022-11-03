@@ -98,21 +98,18 @@ contract Stake {
                 100;
 
             // we need to transfer the rewards token to user in ERC20 token 2
-            rewardToken.transfer(msg.sender, rewards);
+            rewardToken.transfer(
+                msg.sender,
+                rewards + currentUserStakedInfo.unClaimed
+            );
 
             // update staking info
             currentUserStakedInfo.claimed = rewards;
+            currentUserStakedInfo.unClaimed = 0;
         }
 
         // and we need to transfer the initial token for that user as well in same token t1
         token.transfer(msg.sender, currentUserStakedInfo.amount);
-
-        // sending an unclaimed rewards
-        if (currentUserStakedInfo.unClaimed > 0) {
-            // we need to transfer the rewards token to user in ERC20 token 2
-            rewardToken.transfer(msg.sender, currentUserStakedInfo.unClaimed);
-            currentUserStakedInfo.unClaimed = 0;
-        }
 
         // update total staked tokens
         totalStaked = totalStaked - currentUserStakedInfo.amount;
