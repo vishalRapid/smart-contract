@@ -69,18 +69,19 @@ contract NFTTESTING is ERC721, Ownable {
         uint256 amountToTransfer = amount / rate;
         if (amountToTransfer > 1) {
             for (uint256 i = 0; i < amountToTransfer; i++) {
-                safeMint(_to, token);
+                safeMint(_to);
             }
         } else {
-            safeMint(_to, token);
+            safeMint(_to);
         }
+
+        token.transferFrom(msg.sender, address(this), rate);
     }
 
-    function safeMint(address to, ERC20 _token) internal checkUserLimit(to) {
-        _token.transferFrom(msg.sender, address(this), rate);
+    function safeMint(address _to) internal checkUserLimit(_to) {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
-        _safeMint(to, tokenId);
+        _safeMint(_to, tokenId);
     }
 
     // adding functionality to burn nft to get back amount

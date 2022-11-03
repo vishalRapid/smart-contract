@@ -15,6 +15,7 @@ contract Stake {
         uint256 endTS;
         uint256 amount;
         uint256 claimed;
+        uint256 unClaimed;
         bool staked;
     }
 
@@ -40,11 +41,6 @@ contract Stake {
             "Stake token has a min requirement."
         );
 
-        require(
-            stakeInfos[msg.sender].staked == false,
-            "You already staked the token"
-        );
-
         require(block.timestamp < planExpired, "Staking has expired");
 
         require(
@@ -55,19 +51,33 @@ contract Stake {
         // transfer token to this contract
         token.transferFrom(msg.sender, address(this), _stakeAmount);
 
-        // update that this address has already staked
-        stakeInfos[msg.sender].staked = true;
+        if (stakeInfos[msg.sender].staked == true) {
+            // already staked token, need to calculate the rewards till now
+            uint256 interestPeriod = ((block.timestamp -
+                stakeInfos[msg.sender].startTS) / planDuration);
+            // now we have interest that is being paid till date
+            uint256 unClaimedInterest = (interestRate * interestPeriod);
+            require(unClaimedInterest < interestRate, "INVALID INTEREST");
+            // adding unclaimed rewards and square off interest till now
+            stakeInfos[msg.sender].unClaimed += (stakeInfos[msg.sender].amount *
+                unClaimedInterest);
 
-        totalStaked = totalStaked + _stakeAmount;
-
-        // keeping track of staked amount and when it was staked
-        stakeInfos[msg.sender] = StakeInfo({
-            startTS: block.timestamp,
-            endTS: block.timestamp + planDuration,
-            amount: _stakeAmount,
-            claimed: 0,
-            staked: true
-        });
+            // setting new time and amount
+            stakeInfos[msg.sender].startTS = block.timestamp;
+            stakeInfos[msg.sender].endTS = block.timestamp + planDuration;
+            stakeInfos[msg.sender].amount += _stakeAmount;
+        } else {
+            // keeping track of staked amount and when it was staked
+            stakeInfos[msg.sender] = StakeInfo({
+                startTS: block.timestamp,
+                endTS: block.timestamp + planDuration,
+                amount: _stakeAmount,
+                claimed: 0,
+                staked: true,
+                unClaimed: 0
+            });
+        }
+        totalStaked += _stakeAmount;
     }
 
     // function to be called by the user to claim the rewards
@@ -79,11 +89,6 @@ contract Stake {
 
         // current user infor
         StakeInfo memory currentUserStakedInfo = stakeInfos[msg.sender];
-
-        require(
-            currentUserStakedInfo.endTS < block.timestamp,
-            "Still time required for maturity."
-        );
 
         // only distrubuting rewards if maturity date has reached
         if (currentUserStakedInfo.endTS > block.timestamp) {
@@ -102,8 +107,16 @@ contract Stake {
         // and we need to transfer the initial token for that user as well in same token t1
         token.transfer(msg.sender, currentUserStakedInfo.amount);
 
+        // sending an unclaimed rewards
+        if (currentUserStakedInfo.unClaimed > 0) {
+            // we need to transfer the rewards token to user in ERC20 token 2
+            rewardToken.transfer(msg.sender, currentUserStakedInfo.unClaimed);
+            currentUserStakedInfo.unClaimed = 0;
+        }
+
         // update total staked tokens
         totalStaked = totalStaked - currentUserStakedInfo.amount;
+        currentUserStakedInfo.staked = false;
         return true;
     }
 }
