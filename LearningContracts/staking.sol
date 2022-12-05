@@ -52,6 +52,7 @@ contract Stake {
         token.transferFrom(msg.sender, address(this), _stakeAmount);
 
         if (stakeInfos[msg.sender].staked == true) {
+            //TODO work on calculation , choose day wise approach for interest
             // already staked token, need to calculate the rewards till now
             uint256 interestPeriod = ((block.timestamp -
                 stakeInfos[msg.sender].startTS) / planDuration);
@@ -91,7 +92,7 @@ contract Stake {
         StakeInfo memory currentUserStakedInfo = stakeInfos[msg.sender];
 
         // only distrubuting rewards if maturity date has reached
-        if (currentUserStakedInfo.endTS > block.timestamp) {
+        if (currentUserStakedInfo.endTS < block.timestamp) {
             require(currentUserStakedInfo.claimed == 0, "Already claimed");
             // calculate rewards
             uint256 rewards = (currentUserStakedInfo.amount * interestRate) /
@@ -104,7 +105,9 @@ contract Stake {
             );
 
             // update staking info
-            currentUserStakedInfo.claimed = rewards;
+            currentUserStakedInfo.claimed =
+                rewards +
+                currentUserStakedInfo.unClaimed;
             currentUserStakedInfo.unClaimed = 0;
         }
 
