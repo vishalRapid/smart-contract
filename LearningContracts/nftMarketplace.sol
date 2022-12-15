@@ -28,6 +28,7 @@ contract NftMarketplace {
         uint256 price;
         uint256 startTime;
         uint256 endTime;
+        uint256 reservePrice;
     }
 
     struct AuctionStruct {
@@ -93,7 +94,8 @@ contract NftMarketplace {
             true,
             _price,
             block.timestamp,
-            block.timestamp
+            block.timestamp,
+            0
         );
 
         // emit event for newly created auction
@@ -168,10 +170,24 @@ contract NftMarketplace {
                 true,
                 _auctionObject.startingPrice,
                 _auctionObject.startDate,
-                _auctionObject.endDate
+                _auctionObject.endDate,
+                0
             );
         } else {
             // for dutch auction
+            // checking validations for english auction
+            auctionPayload = Token(
+                _tokenId,
+                items,
+                _nft,
+                payable(msg.sender),
+                Auction.DUTCH,
+                true,
+                _auctionObject.startingPrice,
+                _auctionObject.startDate,
+                _auctionObject.endDate,
+                _auctionObject.reserverPrice
+            );
         }
 
         Nfts[items] = auctionPayload;
@@ -184,10 +200,24 @@ contract NftMarketplace {
     function createOffer(uint256 _nftId) external payable {
         // creating an offer for the auction
         require(_nftId > 0 && _nftId <= items, "Invalid nft id");
+
+        // current auction
         Token memory auction = Nfts[_nftId];
 
+        // checking if listing is active or not
+        require(auction.activeListing, "Item not on listing or completed");
+
+        //checking if auction type is valid or not
+        require(
+            auction.listingType == Auction.ENGLISH ||
+                auction.listingType == Auction.ENGLISH,
+            "INVALID LISTING"
+        );
+
+        // checking time validation
+        require(auction.endTime > block.timestamp, "Auction is expired.");
+
         if (auction.listingType == Auction.ENGLISH) {
-            require(auction.endTime > block.timestamp, "Auction is expired.");
             // check if previous offer exist
             uint256 lastPrice = auction.price;
             Offer[] memory previousOffer = nftOffers[_nftId];
@@ -218,12 +248,64 @@ contract NftMarketplace {
             );
 
             // we need to refund the previous offer maker
+        } else {
+            // logic to transfer nft to this owner
+            // keep in mind the price
+            require(
+                auction.reservePrice <= msg.value,
+                "Offer price is out of bound"
+            );
+
+            // need to trasnfer the nft
+            auction.owner.transfer(msg.value);
+
+            // transfer the asset
+            auction.nft.transferFrom(
+                address(this),
+                msg.sender,
+                auction.tokenId
+            );
+
+            // update auction
+            auction.activeListing = false;
         }
         // creating an event for this auction
-        emit newOffer(_nftId, auction.tokenId, Auction.ENGLISH, msg.value);
+        emit newOffer(_nftId, auction.tokenId, auction.listingType, msg.value);
     }
 
-    // function to accept
+    // function to accept english auction
+    // tranfering nft to highest bidder
+    function closeEnglishAuction(uint256 _nftId) external {
+        require(_nftId > 0 && _nftId <= items);
+        Token memory currentAuction = Nfts[_nftId];
+
+        // checking if auction is active or not
+        require(currentAuction.activeListing, "Auction expired.");
+
+        //checking if time has passed or not , bypass for now
+        // require(
+        //     currentAuction.endTime < block.timestamp,
+        //     "Auction is still running"
+        // );
+        require(msg.sender == currentAuction.owner, "Permission denied");
+
+        // close the auction and transfer the asset
+
+        //fetch all offers
+        Offer[] memory activeOffers = nftOffers[_nftId];
+        if (activeOffers.length > 0) {
+            // need to transfer nft to highest bidder
+            currentAuction.nft.transferFrom(
+                address(this),
+                activeOffers[activeOffers.length - 1].bidder,
+                currentAuction.tokenId
+            );
+        }
+        // marking current listing as inactive
+        currentAuction.activeListing = false;
+
+        //TODO , do we need to remove all offers and delete listing? need to ask
+    }
 
     // function to cancel listing of an nft
     function cancelListing(uint256 _nftId) external {
@@ -233,6 +315,15 @@ contract NftMarketplace {
             // need to delete all offers if any
             delete nftOffers[_nftId];
         }
+
+        // need to transfer nft to original owner
+        currentListing.nft.transferFrom(
+            address(this),
+            currentListing.owner,
+            currentListing.tokenId
+        );
+
+        // delete listing object
         delete Nfts[_nftId];
     }
 
