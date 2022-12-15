@@ -187,6 +187,7 @@ contract NftMarketplace {
         Token memory auction = Nfts[_nftId];
 
         if (auction.listingType == Auction.ENGLISH) {
+            require(auction.endTime > block.timestamp, "Auction is expired.");
             // check if previous offer exist
             uint256 lastPrice = auction.price;
             Offer[] memory previousOffer = nftOffers[_nftId];
