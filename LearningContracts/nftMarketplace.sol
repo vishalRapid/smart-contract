@@ -42,7 +42,7 @@ contract NftMarketplace {
     struct Offer {
         uint256 nftId;
         uint256 tokenId;
-        address bidder;
+        address payable bidder;
         uint256 offerPrice;
     }
 
@@ -193,6 +193,14 @@ contract NftMarketplace {
             if (previousOffer.length > 0) {
                 //getting latest highest price;
                 lastPrice = previousOffer[previousOffer.length - 1].offerPrice;
+
+                // refunding the last bidder
+                require(
+                    previousOffer[previousOffer.length - 1].bidder.send(
+                        previousOffer[previousOffer.length - 1].offerPrice
+                    ),
+                    "Error refunding previus owner"
+                );
             }
             // need to check if previous offer exist and then check
             require(
@@ -205,15 +213,25 @@ contract NftMarketplace {
 
             //create new offer entry
             nftOffers[_nftId].push(
-                Offer(_nftId, auction.tokenId, msg.sender, msg.value)
+                Offer(_nftId, auction.tokenId, payable(msg.sender), msg.value)
             );
+
+            // we need to refund the previous offer maker
         }
         // creating an event for this auction
         emit newOffer(_nftId, auction.tokenId, Auction.ENGLISH, msg.value);
     }
 
+    // function to accept
+
     // function to cancel listing of an nft
     function cancelListing(uint256 _nftId) external {
+        Token memory currentListing = Nfts[_nftId];
+
+        if (currentListing.listingType == Auction.ENGLISH) {
+            // need to delete all offers if any
+            delete nftOffers[_nftId];
+        }
         delete Nfts[_nftId];
     }
 
