@@ -239,15 +239,19 @@ contract NftMarketplace {
                 "Bid needs to be greater than last bid"
             );
 
-            // transfer moeny to contract
-            payable(address(this)).transfer(msg.value);
-
             //create new offer entry
             nftOffers[_nftId].push(
                 Offer(_nftId, auction.tokenId, payable(msg.sender), msg.value)
             );
 
             // we need to refund the previous offer maker
+            // creating an event for this auction
+            emit newOffer(
+                _nftId,
+                auction.tokenId,
+                auction.listingType,
+                msg.value
+            );
         } else {
             // logic to transfer nft to this owner
             // keep in mind the price
@@ -269,14 +273,14 @@ contract NftMarketplace {
             // update auction
             auction.activeListing = false;
         }
-        // creating an event for this auction
-        emit newOffer(_nftId, auction.tokenId, auction.listingType, msg.value);
     }
 
     // function to accept english auction
     // tranfering nft to highest bidder
     function closeEnglishAuction(uint256 _nftId) external {
+        // validating nftId
         require(_nftId > 0 && _nftId <= items);
+
         Token memory currentAuction = Nfts[_nftId];
 
         // checking if auction is active or not
@@ -289,22 +293,27 @@ contract NftMarketplace {
         // );
         require(msg.sender == currentAuction.owner, "Permission denied");
 
-        // close the auction and transfer the asset
-
         //fetch all offers
         Offer[] memory activeOffers = nftOffers[_nftId];
+
+        // checking if offers exist on this listing
         if (activeOffers.length > 0) {
-            // need to transfer nft to highest bidder
+            // Transfer nft to highest bidder
             currentAuction.nft.transferFrom(
                 address(this),
                 activeOffers[activeOffers.length - 1].bidder,
                 currentAuction.tokenId
             );
+        } else {
+            // Transfer nft back to author
+            currentAuction.nft.transferFrom(
+                address(this),
+                currentAuction.owner,
+                currentAuction.tokenId
+            );
         }
         // marking current listing as inactive
         currentAuction.activeListing = false;
-
-        //TODO , do we need to remove all offers and delete listing? need to ask
     }
 
     // function to cancel listing of an nft
