@@ -254,10 +254,22 @@ contract NftMarketplace {
             );
         } else {
             // logic to transfer nft to this owner
-            // keep in mind the price
+
+            // calculate price based on time
+            uint256 rateChange = auction.price - auction.reservePrice;
+            // calculate time for whic price change will be calculated
+            uint256 timeChange = auction.endTime - auction.startTime;
+
+            // price change per second
+            uint256 rateChangeForSecond = rateChange / timeChange;
+
+            // time elapsed till now from the starting of the auction
+            uint256 timeElapsed = block.timestamp - auction.startTime;
+
             require(
-                auction.reservePrice <= msg.value,
-                "Offer price is out of bound"
+                (auction.price - (timeElapsed * rateChangeForSecond)) <=
+                    msg.value,
+                "Offer price is not sufficient"
             );
 
             // need to trasnfer the nft
